@@ -18,6 +18,7 @@ export declare class FileSlice implements Blob {
     private readonly _start;
     private readonly _end;
     readonly type: string;
+    get [Symbol.toStringTag](): string;
     constructor(source: File, start: number, end: number, contentType: string);
     get size(): number;
     arrayBuffer(): Promise<ArrayBuffer>;
