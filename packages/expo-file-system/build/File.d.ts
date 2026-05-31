@@ -100,11 +100,32 @@ export declare class File extends ExpoFileSystem.FileSystemFile implements Blob 
      * File name. Includes the extension.
      */
     get name(): string;
+    /**
+     * Creates a `ReadableStream` that reads from this file using a `FileHandle` internally.
+     *
+     * The stream reads in 1024-byte chunks by default. The underlying file handle is
+     * closed automatically when the stream is fully consumed or cancelled.
+     *
+     * @return A byte-oriented `ReadableStream` backed by this file.
+     */
     readableStream(): ReadableStream<Uint8Array<ArrayBuffer>>;
+    /**
+     * Creates a `WritableStream` that writes to this file using a `FileHandle` internally.
+     *
+     * The underlying file handle is closed automatically when the stream is closed or aborted.
+     *
+     * @return A `WritableStream` that accepts `Uint8Array` chunks.
+     */
     writableStream(): WritableStream<Uint8Array<ArrayBufferLike>>;
     arrayBuffer(): Promise<ArrayBuffer>;
     json(): Promise<any>;
     formData(): ReturnType<Response['formData']>;
+    /**
+     * Returns a `ReadableStream` for this file. This is an alias for `readableStream()`
+     * and implements the `Blob.stream()` interface.
+     *
+     * @return A byte-oriented `ReadableStream` backed by this file.
+     */
     stream(): ReadableStream<Uint8Array<ArrayBuffer>>;
     slice(start?: number, end?: number, contentType?: string): Blob;
     /**
