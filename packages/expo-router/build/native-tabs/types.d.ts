@@ -2,7 +2,8 @@ import type { PropsWithChildren } from 'react';
 import type { ColorValue, ImageSourcePropType, StyleProp, TextStyle, ViewStyle } from 'react-native';
 import type { TabsHostProps, TabsScreenProps } from 'react-native-screens';
 import type { SFSymbol } from 'sf-symbols-typescript';
-import type { DefaultRouterOptions, ParamListBase, RouteProp, ScreenListeners, TabNavigationState } from '../react-navigation/native';
+import type { DefaultRouterOptions, ParamListBase, TabNavigationState } from '../react-navigation/native';
+import type { StandardUseNavigationBuilderOptions } from '../standard-navigation';
 import type { ScreenProps } from '../useScreens';
 /**
  * Event map for `NativeTabs` navigation events.
@@ -370,9 +371,7 @@ export interface NativeTabsProps extends PropsWithChildren {
      * </NativeTabs>
      * ```
      */
-    screenListeners?: ScreenListeners<TabNavigationState<ParamListBase>, NativeTabNavigationEventMap> | ((prop: {
-        route: RouteProp<ParamListBase, string>;
-    }) => ScreenListeners<TabNavigationState<ParamListBase>, NativeTabNavigationEventMap>);
+    screenListeners?: StandardUseNavigationBuilderOptions<TabNavigationState<ParamListBase>, object, NativeTabNavigationEventMap>['screenListeners'];
     /**
      * Props passed to the underlying native tab host implementation in `react-native-screens`.
      * Use this to configure props that are not directly exposed by Expo Router.

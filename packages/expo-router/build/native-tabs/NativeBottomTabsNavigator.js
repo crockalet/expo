@@ -35,7 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NativeTabsContext = void 0;
-exports.NativeTabsNavigator = NativeTabsNavigator;
 exports.NativeTabsNavigatorWrapper = NativeTabsNavigatorWrapper;
 const jsx_runtime_1 = require("react/jsx-runtime");
 const react_1 = require("react");
@@ -44,49 +43,19 @@ const NativeBottomTabsRouter_1 = require("./NativeBottomTabsRouter");
 const NativeTabTrigger_1 = require("./NativeTabTrigger");
 const NativeTabsView_1 = require("./NativeTabsView");
 const utils_1 = require("./utils");
-const withLayoutContext_1 = require("../layouts/withLayoutContext");
-const linking_1 = require("../link/linking");
-const native_1 = require("../react-navigation/native");
+const standard_navigation_1 = require("../standard-navigation");
 const children_1 = require("../utils/children");
 // In Jetpack Compose, the default back behavior is to go back to the initial route.
 const defaultBackBehavior = 'initialRoute';
 exports.NativeTabsContext = react_2.default.createContext(false);
-function NativeTabsNavigator({ children, backBehavior = defaultBackBehavior, labelStyle, iconColor, blurEffect, backgroundColor, badgeBackgroundColor, indicatorColor, badgeTextColor, shadowColor, rippleColor, disableIndicator, labelVisibilityMode, screenListeners, ...rest }) {
+function NativeTabsContent({ state, descriptors, actions, emitter, 
+// These per-tab style props are folded into `screenOptions` by `NativeTabsNavigatorWrapper` and
+// read back per-tab from `descriptors`. Pull them out of `rest` so they aren't forwarded to
+// `NativeTabsView` as top-level props.
+labelStyle, iconColor, backgroundColor, badgeBackgroundColor, blurEffect, indicatorColor, badgeTextColor, rippleColor, disableIndicator, labelVisibilityMode, ...rest }) {
     if ((0, react_2.use)(exports.NativeTabsContext)) {
         throw new Error('Nesting Native Tabs inside each other is not supported natively. Use JS tabs for nesting instead.');
     }
-    const processedLabelStyle = (0, utils_1.convertLabelStylePropToObject)(labelStyle);
-    const processedIconColor = (0, utils_1.convertIconColorPropToObject)(iconColor);
-    const selectedLabelStyle = processedLabelStyle.selected
-        ? {
-            ...processedLabelStyle.selected,
-            color: processedLabelStyle.selected.color ?? rest.tintColor,
-        }
-        : rest.tintColor
-            ? { color: rest.tintColor }
-            : undefined;
-    const { state, descriptors, navigation, NavigationContent } = (0, native_1.useNavigationBuilder)(NativeBottomTabsRouter_1.NativeBottomTabsRouter, {
-        children,
-        backBehavior,
-        screenListeners,
-        screenOptions: {
-            disableTransparentOnScrollEdge: rest.disableTransparentOnScrollEdge,
-            labelStyle: processedLabelStyle.default,
-            selectedLabelStyle,
-            iconColor: processedIconColor.default,
-            selectedIconColor: processedIconColor.selected ?? rest.tintColor,
-            blurEffect,
-            backgroundColor,
-            badgeBackgroundColor,
-            indicatorColor,
-            badgeTextColor,
-            shadowColor,
-            rippleColor,
-            disableIndicator,
-            labelVisibilityMode,
-            tintColor: rest.tintColor,
-        },
-    });
     const { routes } = state;
     const visibleTabs = (0, react_2.useMemo)(() => routes
         // The <NativeTab.Trigger> always sets `hidden` to defined boolean value.
@@ -102,7 +71,8 @@ function NativeTabsNavigator({ children, backBehavior = defaultBackBehavior, lab
     const visibleTabsKeys = (0, react_2.useMemo)(() => visibleTabs.map((tab) => tab.routeKey).join(';'), [visibleTabs]);
     if (visibleFocusedTabIndex < 0) {
         if (process.env.NODE_ENV !== 'production') {
-            throw new Error(`The focused tab in NativeTabsView cannot be displayed. Make sure path is correct and the route is not hidden. Path: "${(0, linking_1.getPathFromState)(state)}"`);
+            const focusedRoute = routes[state.index];
+            throw new Error(`The focused tab in NativeTabsView cannot be displayed. Make sure path is correct and the route is not hidden. Route: "${focusedRoute?.href ?? focusedRoute?.name}"`);
         }
     }
     const focusedIndex = visibleFocusedTabIndex >= 0 ? visibleFocusedTabIndex : 0;
@@ -112,7 +82,7 @@ function NativeTabsNavigator({ children, backBehavior = defaultBackBehavior, lab
             // The native side blocked selecting a disabled tab. Notify listeners, but
             // don't advance navigation or acknowledge a (non-existent) state transition,
             // so the provenance counter is left untouched.
-            navigation.emit({
+            emitter.emit({
                 type: 'tabPress',
                 target: selectedKey,
                 data: {
@@ -125,8 +95,15 @@ function NativeTabsNavigator({ children, backBehavior = defaultBackBehavior, lab
         // We should always send the last provenance we got from native side
         provenanceRef.current = provenance;
         if (isNativeAction) {
-            const { route } = descriptors[selectedKey];
-            navigation.emit({
+            const selectedRoute = routes.find((route) => route.key === selectedKey);
+            if (!selectedRoute) {
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn(`NativeTabs received a native tab change for an unknown tab (key: "${selectedKey}"), so the change was ignored. ` +
+                        `This is most likely a bug in expo-router. Please report it at https://github.com/expo/expo/issues.`);
+                }
+                return;
+            }
+            emitter.emit({
                 type: 'tabPress',
                 target: selectedKey,
                 data: {
@@ -134,26 +111,69 @@ function NativeTabsNavigator({ children, backBehavior = defaultBackBehavior, lab
                     isPrevented: false,
                 },
             });
-            navigation.dispatch({
-                type: 'JUMP_TO',
-                target: state.key,
-                payload: {
-                    name: route.name,
-                },
-            });
+            actions.navigate(selectedRoute.name);
         }
-    }, [descriptors, navigation, state.key]);
-    return ((0, jsx_runtime_1.jsx)(NavigationContent, { children: (0, jsx_runtime_1.jsx)(exports.NativeTabsContext, { value: true, children: (0, react_1.createElement)(NativeTabsView_1.NativeTabsView, { ...rest, key: visibleTabsKeys, focusedIndex: focusedIndex, 
-                // Provenance should only be sent with updates, and updates
-                // on JS side are only triggered by rerender, so passing ref
-                // here is ok.
-                provenance: provenanceRef.current, tabs: visibleTabs, onTabChange: onTabChange }) }) }));
+    }, [routes, actions, emitter]);
+    // Compile-time guard: everything spread onto `<NativeTabsView>` must be a prop it declares. The
+    // `Record<…, never>` turns any prop the view doesn't accept into a type error here instead of
+    // letting it leak silently through the spread.
+    const nativeTabsViewProps = rest;
+    return ((0, jsx_runtime_1.jsx)(exports.NativeTabsContext, { value: true, children: (0, react_1.createElement)(NativeTabsView_1.NativeTabsView, { ...nativeTabsViewProps, key: visibleTabsKeys, focusedIndex: focusedIndex, 
+            // Provenance should only be sent with updates, and updates
+            // on JS side are only triggered by rerender, so passing ref
+            // here is ok.
+            provenance: provenanceRef.current, tabs: visibleTabs, onTabChange: onTabChange }) }));
 }
-const createNativeTabNavigator = (0, native_1.createNavigatorFactory)(NativeTabsNavigator);
-const NativeTabsNavigatorWithContext = (0, withLayoutContext_1.withLayoutContext)(createNativeTabNavigator().Navigator, undefined, true);
+const NativeTabsNavigatorWithContext = (0, standard_navigation_1.unstable_createStandardRouterNavigator)(NativeTabsContent, NativeBottomTabsRouter_1.NativeBottomTabsRouter, { useOnlyUserDefinedScreens: true });
 function NativeTabsNavigatorWrapper(props) {
     const triggerChildren = (0, react_2.useMemo)(() => (0, children_1.getAllChildrenOfType)(props.children, NativeTabTrigger_1.NativeTabTrigger), [props.children]);
     const nonTriggerChildren = (0, react_2.useMemo)(() => (0, children_1.getAllChildrenNotOfType)(props.children, NativeTabTrigger_1.NativeTabTrigger), [props.children]);
-    return ((0, jsx_runtime_1.jsx)(NativeTabsNavigatorWithContext, { ...props, children: triggerChildren, nonTriggerChildren: nonTriggerChildren }));
+    const { backBehavior = defaultBackBehavior, labelStyle, iconColor, blurEffect, backgroundColor, badgeBackgroundColor, indicatorColor, badgeTextColor, shadowColor, rippleColor, disableIndicator, labelVisibilityMode, tintColor, disableTransparentOnScrollEdge, } = props;
+    const screenOptions = (0, react_2.useMemo)(() => {
+        const processedLabelStyle = (0, utils_1.convertLabelStylePropToObject)(labelStyle);
+        const processedIconColor = (0, utils_1.convertIconColorPropToObject)(iconColor);
+        const selectedLabelStyle = processedLabelStyle.selected
+            ? {
+                ...processedLabelStyle.selected,
+                color: processedLabelStyle.selected.color ?? tintColor,
+            }
+            : tintColor
+                ? { color: tintColor }
+                : undefined;
+        return {
+            disableTransparentOnScrollEdge,
+            labelStyle: processedLabelStyle.default,
+            selectedLabelStyle,
+            iconColor: processedIconColor.default,
+            selectedIconColor: processedIconColor.selected ?? tintColor,
+            blurEffect,
+            backgroundColor,
+            badgeBackgroundColor,
+            indicatorColor,
+            badgeTextColor,
+            shadowColor,
+            rippleColor,
+            disableIndicator,
+            labelVisibilityMode,
+            tintColor,
+        };
+    }, [
+        labelStyle,
+        iconColor,
+        blurEffect,
+        backgroundColor,
+        badgeBackgroundColor,
+        indicatorColor,
+        badgeTextColor,
+        shadowColor,
+        rippleColor,
+        disableIndicator,
+        labelVisibilityMode,
+        tintColor,
+        disableTransparentOnScrollEdge,
+    ]);
+    return ((0, jsx_runtime_1.jsx)(NativeTabsNavigatorWithContext, { ...props, children: triggerChildren, nonTriggerChildren: nonTriggerChildren, screenOptions: screenOptions, 
+        // Passed to TabRouter
+        backBehavior: backBehavior }));
 }
 //# sourceMappingURL=NativeBottomTabsNavigator.js.map
