@@ -452,6 +452,20 @@ async function parseModuleFunctionSubstructure(substructure, file, options) {
         definitionOffset: substructure['key.offset'],
     };
 }
+async function parseModuleAsyncFunctionSubstructure(substructure, file, options) {
+    const functionDeclaration = await parseModuleFunctionSubstructure(substructure, file, options);
+    const lastArgument = functionDeclaration.arguments[functionDeclaration.arguments.length - 1];
+    if (!lastArgument) {
+        return functionDeclaration;
+    }
+    const isPromiseName = lastArgument.name === 'promise';
+    const isPromiseType = lastArgument.type.kind === typeInformation_1.TypeKind.IDENTIFIER &&
+        lastArgument.type.type === 'Promise';
+    if (isPromiseName || isPromiseType) {
+        functionDeclaration.arguments.pop();
+    }
+    return functionDeclaration;
+}
 async function parseModulePropDeclaration(substructure, file, options) {
     const definitionParams = substructure['key.substructure'];
     const nameSubstrucutre = definitionParams[0];
@@ -608,7 +622,7 @@ async function parseModuleStructure(moduleStructure, file, name, definitionOffse
                 break;
             }
             case 'AsyncFunction':
-                moduleClassDeclaration.asyncFunctions.push(await parseModuleFunctionSubstructure(structure, file, options));
+                moduleClassDeclaration.asyncFunctions.push(await parseModuleAsyncFunctionSubstructure(structure, file, options));
                 break;
             case 'Constructor':
                 moduleClassDeclaration.constructor = await parseModuleConstructorDeclaration(structure, file, options);
