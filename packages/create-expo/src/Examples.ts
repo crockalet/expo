@@ -145,8 +145,8 @@ export async function downloadAndExtractExampleAsync(root: string, name: string)
 }
 
 function exampleHasNativeCode(root: string): boolean {
-  return [path.join(root, 'android'), path.join(root, 'ios')].some((folder) =>
-    fs.existsSync(folder)
+  return [path.join(root, 'android'), path.join(root, 'ios'), path.join(root, 'tvos')].some(
+    (folder) => fs.existsSync(folder)
   );
 }
 

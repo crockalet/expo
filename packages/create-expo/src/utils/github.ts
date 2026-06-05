@@ -75,11 +75,15 @@ async function extractRemoteGitHubTarballAsync(
   // The filter auto-ignores dotfiles, unless explicitly included
   const filter = createGlobFilter(
     !directory.length
-      ? ['*/**', '*/ios/.xcode.env']
-      : [`*/${directory.join('/')}/**`, `*/${directory.join('/')}/ios/.xcode.env`],
+      ? ['*/**', '*/ios/.xcode.env', '*/tvos/.xcode.env']
+      : [
+          `*/${directory.join('/')}/**`,
+          `*/${directory.join('/')}/ios/.xcode.env`,
+          `*/${directory.join('/')}/tvos/.xcode.env`,
+        ],
     {
       // Always ignore the `.xcworkspace` folder
-      ignore: ['**/ios/*.xcworkspace/**'],
+      ignore: ['**/ios/*.xcworkspace/**', '**/tvos/*.xcworkspace/**'],
     }
   );
 
