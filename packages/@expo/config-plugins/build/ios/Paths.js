@@ -74,7 +74,7 @@ function _warnings() {
 function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function (e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != typeof e && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (const t in e) "default" !== t && {}.hasOwnProperty.call(e, t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, t)) && (i.get || i.set) ? o(f, t, i) : f[t] = e[t]); return f; })(e, t); }
 const ignoredPaths = ['**/@(Carthage|Pods|vendor|node_modules)/**'];
 function getAppDelegateHeaderFilePath(projectRoot) {
-  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/*/AppDelegate.h', {
+  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/*/AppDelegate.h', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -94,7 +94,7 @@ function getAppDelegateHeaderFilePath(projectRoot) {
   return using;
 }
 function getAppDelegateFilePath(projectRoot) {
-  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/*/AppDelegate.@(m|mm|swift)', {
+  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/*/AppDelegate.@(m|mm|swift)', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -114,7 +114,7 @@ function getAppDelegateFilePath(projectRoot) {
   return using;
 }
 function getAppDelegateObjcHeaderFilePath(projectRoot) {
-  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/*/AppDelegate.h', {
+  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/*/AppDelegate.h', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -134,7 +134,7 @@ function getAppDelegateObjcHeaderFilePath(projectRoot) {
   return using;
 }
 function getPodfilePath(projectRoot) {
-  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/Podfile', {
+  const [using, ...extra] = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/Podfile', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -186,7 +186,7 @@ function getSourceRoot(projectRoot) {
   return path().dirname(appDelegate.path);
 }
 function findSchemePaths(projectRoot) {
-  return (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/*.xcodeproj/xcshareddata/xcschemes/*.xcscheme', {
+  return (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/*.xcodeproj/xcshareddata/xcschemes/*.xcscheme', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -197,23 +197,23 @@ function findSchemeNames(projectRoot) {
   return schemePaths.map(schemePath => path().parse(schemePath).name);
 }
 function getAllXcodeProjectPaths(projectRoot) {
-  const iosFolder = 'ios';
-  const pbxprojPaths = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/**/*.xcodeproj', {
+  const platformFolders = ['ios', 'tvos'];
+  const pbxprojPaths = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/**/*.xcodeproj', {
     cwd: projectRoot,
     ignore: ignoredPaths
   })
   // Drop leading `/` from glob results to mimick glob@<9 behavior
-  .map(filePath => filePath.replace(/^\//, '')).filter(project => !/test|example|sample/i.test(project) || path().dirname(project) === iosFolder)).sort((a, b) => {
-    const isAInIos = path().dirname(a) === iosFolder;
-    const isBInIos = path().dirname(b) === iosFolder;
+  .map(filePath => filePath.replace(/^\//, '')).filter(project => !/test|example|sample/i.test(project) || platformFolders.includes(path().dirname(project)))).sort((a, b) => {
+    const isAInPlatform = platformFolders.includes(path().dirname(a));
+    const isBInPlatform = platformFolders.includes(path().dirname(b));
     // preserve previous sort order
-    if (isAInIos && isBInIos || !isAInIos && !isBInIos) {
+    if (isAInPlatform && isBInPlatform || !isAInPlatform && !isBInPlatform) {
       return 0;
     }
-    return isAInIos ? -1 : 1;
+    return isAInPlatform ? -1 : 1;
   });
   if (!pbxprojPaths.length) {
-    throw new (_errors().UnexpectedError)(`Failed to locate the ios/*.xcodeproj files relative to path "${projectRoot}".`);
+    throw new (_errors().UnexpectedError)(`Failed to locate the {ios,tvos}/*.xcodeproj files relative to path "${projectRoot}".`);
   }
   return pbxprojPaths.map(value => path().join(projectRoot, value));
 }
@@ -238,7 +238,7 @@ function getAllPBXProjectPaths(projectRoot) {
   const projectPaths = getAllXcodeProjectPaths(projectRoot);
   const paths = projectPaths.map(value => path().join(value, 'project.pbxproj')).filter(value => (0, _fs().existsSync)(value));
   if (!paths.length) {
-    throw new (_errors().UnexpectedError)(`Failed to locate the ios/*.xcodeproj/project.pbxproj files relative to path "${projectRoot}".`);
+    throw new (_errors().UnexpectedError)(`Failed to locate the {ios,tvos}/*.xcodeproj/project.pbxproj files relative to path "${projectRoot}".`);
   }
   return paths;
 }
@@ -256,7 +256,7 @@ function getPBXProjectPath(projectRoot) {
   return using;
 }
 function getAllInfoPlistPaths(projectRoot) {
-  const paths = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('ios/*/Info.plist', {
+  const paths = (0, _glob2().withSortedGlobResult)((0, _glob().globSync)('{ios,tvos}/*/Info.plist', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -282,7 +282,7 @@ function getInfoPlistPath(projectRoot) {
   return using;
 }
 function getAllEntitlementsPaths(projectRoot) {
-  const paths = (0, _glob().globSync)('ios/*/*.entitlements', {
+  const paths = (0, _glob().globSync)('{ios,tvos}/*/*.entitlements', {
     absolute: true,
     cwd: projectRoot,
     ignore: ignoredPaths
@@ -297,7 +297,9 @@ function getEntitlementsPath(projectRoot) {
   return Entitlements().getEntitlementsPath(projectRoot);
 }
 function getSupportingPath(projectRoot) {
-  return path().resolve(projectRoot, 'ios', path().basename(getSourceRoot(projectRoot)), 'Supporting');
+  // Derive from the source root rather than hardcoding `ios/`, so a tvos-only
+  // project resolves to `<projectRoot>/tvos/<name>/Supporting`.
+  return path().resolve(getSourceRoot(projectRoot), 'Supporting');
 }
 function getExpoPlistPath(projectRoot) {
   const supportingPath = getSupportingPath(projectRoot);

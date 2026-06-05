@@ -57,7 +57,7 @@ function getPrebuildConfig(
   config = withVersionedExpoSDKPlugins(config);
   config = withLegacyExpoPlugins(config);
 
-  if (platforms.includes('ios')) {
+  if (platforms.includes('ios') || platforms.includes('tvos')) {
     if (!config.ios) config.ios = {};
     config.ios.bundleIdentifier =
       bundleIdentifier ?? config.ios.bundleIdentifier ?? `com.placeholder.appid`;

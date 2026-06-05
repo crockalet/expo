@@ -54,6 +54,13 @@ function _createBaseMod() {
   };
   return data;
 }
+function _withMod() {
+  const data = require("./withMod");
+  _withMod = function () {
+    return data;
+  };
+  return data;
+}
 function _ios() {
   const data = require("../ios");
   _ios = function () {
@@ -185,12 +192,12 @@ const defaultProviders = {
     isIntrospective: true,
     getFilePath({
       modRequest: {
-        platformProjectRoot,
-        projectName
+        projectRoot
       }
     }) {
-      const supportingDirectory = _path().default.join(platformProjectRoot, projectName, 'Supporting');
-      return _path().default.resolve(supportingDirectory, 'Expo.plist');
+      // Derive the platform dir from the source root (`{ios,tvos}/<name>`)
+      // rather than hardcoding `ios/`, so tvos-only projects resolve too.
+      return _path().default.resolve(_ios().Paths.getSupportingPath(projectRoot), 'Expo.plist');
     },
     async read(filePath, {
       modRequest: {
@@ -218,26 +225,12 @@ const defaultProviders = {
       await writeFile(filePath, _plist().default.build((0, _sortObject().sortObject)(modResults)));
     }
   }),
-  // Append a rule to supply .xcodeproj data to mods on `mods.ios.xcodeproj`
-  xcodeproj: (0, _createBaseMod().provider)({
-    getFilePath({
-      modRequest: {
-        projectRoot
-      }
-    }) {
-      return _ios().Paths.getPBXProjectPath(projectRoot);
-    },
-    async read(filePath) {
-      const project = _xcode().default.project(filePath);
-      project.parseSync();
-      return project;
-    },
-    async write(filePath, {
-      modResults
-    }) {
-      await writeFile(filePath, modResults.writeSync());
-    }
-  }),
+  // Note: `mods.ios.xcodeproj` is registered separately via
+  // `withIosXcodeProjectIteratingBaseMod` so it can iterate over every
+  // discovered pbxproj (e.g. both `ios/` and `tvos/`) rather than only the
+  // first one returned by `getPBXProjectPath`. The xcodeproj mod isn't a
+  // standard single-file provider, so it doesn't fit the createBaseMod
+  // contract.
   // Append a rule to supply Info.plist data to mods on `mods.ios.infoPlist`
   infoPlist: (0, _createBaseMod().provider)({
     isIntrospective: true,
@@ -254,10 +247,13 @@ const defaultProviders = {
       if (project) {
         const infoPlistBuildProperty = (0, _getInfoPlistPath().getInfoPlistPathFromPbxproj)(project);
         if (infoPlistBuildProperty) {
-          //: [root]/myapp/ios/MyApp/Info.plist
+          //: [root]/myapp/{ios,tvos}/MyApp/Info.plist
+          // Derive the platform dir from the source root rather than
+          // hardcoding `ios/`, so tvos-only projects resolve too.
+          const sourceRoot = _ios().Paths.getSourceRoot(config.modRequest.projectRoot);
           const infoPlistPath = _path().default.join(
-          //: myapp/ios
-          config.modRequest.platformProjectRoot,
+          //: <projectRoot>/{ios,tvos}
+          _path().default.dirname(sourceRoot),
           //: MyApp/Info.plist
           infoPlistBuildProperty);
           if ((0, _modules().fileExists)(infoPlistPath)) {
@@ -401,10 +397,12 @@ const defaultProviders = {
     isIntrospective: true,
     getFilePath({
       modRequest: {
-        platformProjectRoot
+        projectRoot
       }
     }) {
-      return _path().default.resolve(platformProjectRoot, 'Podfile.properties.json');
+      // Sibling of the Podfile, which getPodfilePath resolves against
+      // `{ios,tvos}/` so tvos-only projects work too.
+      return _path().default.resolve(_path().default.dirname(_ios().Paths.getPodfilePath(projectRoot)), 'Podfile.properties.json');
     },
     async read(filePath) {
       let results = {};
@@ -430,13 +428,59 @@ function withIosBaseMods(config, {
   providers,
   ...props
 } = {}) {
-  return (0, _createBaseMod().withGeneratedBaseMods)(config, {
+  config = (0, _createBaseMod().withGeneratedBaseMods)(config, {
     ...props,
     platform: 'ios',
     providers: providers ?? getIosModFileProviders()
   });
+  return withIosXcodeProjectIteratingBaseMod(config);
 }
 function getIosModFileProviders() {
   return defaultProviders;
 }
+
+/**
+ * A custom base mod for `mods.ios.xcodeproj`. Unlike the standard providers,
+ * this one runs the chained `xcodeproj` mod action once per discovered
+ * pbxproj — typically `ios/HelloWorld.xcodeproj/project.pbxproj` AND
+ * `tvos/HelloWorld.xcodeproj/project.pbxproj` when both directories exist.
+ *
+ * `Paths.getAllPBXProjectPaths` is scoped to `{ios,tvos}/**`, so macOS Xcode
+ * projects are intentionally excluded — leaf mods like `withBundleIdentifier`
+ * should not touch a macos pbxproj. Existing leaf mods (registered via
+ * `withXcodeProject`) work unchanged: they see a single `XcodeProject` in
+ * `modResults` each time the action fires.
+ */
+const withIosXcodeProjectIteratingBaseMod = config => {
+  return (0, _withMod().withBaseMod)(config, {
+    platform: 'ios',
+    mod: 'xcodeproj',
+    skipEmptyMod: true,
+    isProvider: true,
+    async action({
+      modRequest: {
+        nextMod,
+        ...modRequest
+      },
+      ...config
+    }) {
+      const pbxprojPaths = _ios().Paths.getAllPBXProjectPaths(modRequest.projectRoot);
+      let results = {
+        ...config,
+        modRequest
+      };
+      for (const filePath of pbxprojPaths) {
+        const project = _xcode().default.project(filePath);
+        project.parseSync();
+        results = await nextMod({
+          ...results,
+          modResults: project,
+          modRequest
+        });
+        await writeFile(filePath, results.modResults.writeSync());
+      }
+      return results;
+    }
+  });
+};
 //# sourceMappingURL=withIosBaseMods.js.map
