@@ -302,7 +302,10 @@ const defaultProviders = {
     getFilePath({ modRequest: { projectRoot } }) {
       // Sibling of the Podfile, which getPodfilePath resolves against
       // `{ios,tvos}/` so tvos-only projects work too.
-      return path.resolve(path.dirname(Paths.getPodfilePath(projectRoot)), 'Podfile.properties.json');
+      return path.resolve(
+        path.dirname(Paths.getPodfilePath(projectRoot)),
+        'Podfile.properties.json'
+      );
     },
     async read(filePath) {
       let results: Record<string, JSONValue> = {};
