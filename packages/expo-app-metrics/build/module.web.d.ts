@@ -1,12 +1,11 @@
 import { NativeModule } from 'expo';
 import type { Session } from './Session';
-import type { ExpoAppMetricsModuleType, LogAttributeValue, LogEventOptions, Metric, MetricAttributes } from './types';
+import type { ExpoAppMetricsModuleType, LogAttributeValue, LogEventOptions, MetricAttributes } from './types';
 export * from './types';
 declare class ExpoAppMetricsModule extends NativeModule implements ExpoAppMetricsModuleType {
     NetworkRequestObserver: ExpoAppMetricsModuleType["NetworkRequestObserver"];
     Session: typeof Session;
     private mainSession;
-    addCustomMetricToSession(metric: Metric): Promise<void>;
     markFirstRender(): Promise<void>;
     markInteractive(attributes?: MetricAttributes): Promise<void>;
     logEvent(name: string, options?: LogEventOptions): void;
@@ -16,7 +15,7 @@ declare class ExpoAppMetricsModule extends NativeModule implements ExpoAppMetric
     simulateCrashReport(): void;
     triggerCrash(): void;
     getMainSession(): Session;
-    getForegroundSession(): Promise<null>;
+    getForegroundSession(): Promise<Session | null>;
 }
 declare const _default: typeof ExpoAppMetricsModule;
 export default _default;
