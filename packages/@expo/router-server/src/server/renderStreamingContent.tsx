@@ -13,7 +13,8 @@ import { ctx } from 'expo-router/_ctx';
 import Head from 'expo-router/head';
 import { ServerDocument } from 'expo-router/internal/server';
 import { InnerRoot, registerStaticRootComponent } from 'expo-router/internal/static';
-import React, { type ReactNode } from 'react';
+import { text } from 'node:stream/consumers';
+import React, { ReactNode } from 'react';
 import ReactDOMServer from 'react-dom/server';
 
 import { getRootComponent } from '../static/getRootComponent';
@@ -61,6 +62,14 @@ export type GetStreamingContentOptions = {
     /** Public href of a favicon generated from `web.favicon` in the app config. */
     favicon?: string;
   };
+  /**
+   * Render output shape — values mirror `web.output` from the Expo app config.
+   * - `'server'` (default): return a `ReadableStream<Uint8Array>` for progressive SSR.
+   * - `'static'`: await `stream.allReady` (every Suspense boundary settles) then drain
+   *   the stream to a complete HTML string. Used for build-time SSG via the same
+   *   streaming renderer.
+   */
+  output?: 'static' | 'server';
 };
 
 /**
@@ -113,11 +122,19 @@ function FontResources() {
  * Streaming SSR renderer using `renderToReadableStream`. Returns a web `ReadableStream`
  * that emits the full HTML document with head injections applied.
  */
+export function getStreamingContent(
+  location: URL,
+  options: GetStreamingContentOptions & { output: 'static' }
+): Promise<string>;
+export function getStreamingContent(
+  location: URL,
+  options?: GetStreamingContentOptions & { output?: 'server' }
+): Promise<ReadableStream<Uint8Array>>;
 export async function getStreamingContent(
   location: URL,
   options?: GetStreamingContentOptions
-): Promise<ReadableStream<Uint8Array>> {
-  return Font.withServerContext(() => {
+): Promise<ReadableStream<Uint8Array> | string> {
+  return Font.withServerContext(async () => {
     const { headContext, element, getStyleElement, loadedData } = prepareRenderContext(
       location,
       options
@@ -142,7 +159,12 @@ export async function getStreamingContent(
       bodyNodes: [<FontResources key="font-resources" />],
     };
 
-    return ReactDOMServer.renderToReadableStream(
+    // `stream.allReady` only rejects on fatal Suspense errors; React-recovered errors (Suspense
+    // subtree with no error boundary) hit `onError` and let the render finish. SSG must fail the
+    // export in that case, so capture and rethrow.
+    const renderErrors: unknown[] = [];
+
+    const stream = await ReactDOMServer.renderToReadableStream(
       <ServerDocument data={serverDocumentData}>
         {/* TODO(@hassankhan): Remove `<Head.Provider>` when `unstable_useServerRendering` is stabilized */}
         <Head.Provider context={headContext}>
@@ -161,10 +183,24 @@ export async function getStreamingContent(
             return;
           }
 
+          if (options?.output === 'static') {
+            renderErrors.push(error);
+          }
+
           console.error('SSR streaming render error:', error);
         },
       }
     );
+
+    if (options?.output === 'static') {
+      await stream.allReady;
+      if (renderErrors.length > 0) {
+        throw renderErrors[0];
+      }
+      return await text(stream);
+    }
+
+    return stream;
   });
 }
 

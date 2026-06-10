@@ -511,7 +511,7 @@ export class MetroBundlerDevServer extends BundlerDevServer {
     const appDir = path.join(this.projectRoot, routerRoot);
     const url = this.getDevServerUrlOrAssert();
 
-    const { getStaticContent, getManifest, getBuildTimeServerManifestAsync } =
+    const { getStaticContent, getStreamingContent, getManifest, getBuildTimeServerManifestAsync } =
       await this.ssrLoadModule<
         typeof import('@expo/router-server/build/static/renderStaticContent')
       >(require.resolve('@expo/router-server/node/render.js'), {
@@ -538,6 +538,9 @@ export class MetroBundlerDevServer extends BundlerDevServer {
       // Get route generating function
       renderAsync: async (path, route, opts?) => {
         const location = new URL(path, url);
+        if (useServerRendering) {
+          return await getStreamingContent(location, { ...opts, output: 'static' });
+        }
         return await getStaticContent(location, opts);
       },
       executeLoaderAsync: async (path, route) => {
@@ -750,8 +753,10 @@ export class MetroBundlerDevServer extends BundlerDevServer {
       return { content };
     }
 
+    const useServerRendering = exp.extra?.router?.unstable_useServerRendering ?? false;
+
     const bundleStaticHtml = async (): Promise<string> => {
-      const { getStaticContent } = await this.ssrLoadModule<
+      const { getStaticContent, getStreamingContent } = await this.ssrLoadModule<
         typeof import('@expo/router-server/build/static/renderStaticContent')
       >(require.resolve('@expo/router-server/node/render.js'), {
         // This must always use the legacy rendering resolution (no `react-server`) because it leverages
@@ -768,6 +773,12 @@ export class MetroBundlerDevServer extends BundlerDevServer {
         request,
       });
 
+      if (useServerRendering) {
+        return await getStreamingContent(location, {
+          ...(loader ? { loader } : {}),
+          output: 'static',
+        });
+      }
       return await getStaticContent(location, loader ? { loader } : undefined);
     };
 

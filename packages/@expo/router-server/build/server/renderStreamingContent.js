@@ -53,6 +53,7 @@ const _ctx_1 = require("expo-router/_ctx");
 const head_1 = __importDefault(require("expo-router/head"));
 const server_1 = require("expo-router/internal/server");
 const static_1 = require("expo-router/internal/static");
+const consumers_1 = require("node:stream/consumers");
 const server_2 = __importDefault(require("react-dom/server"));
 const getRootComponent_1 = require("../static/getRootComponent");
 const debug_1 = require("../utils/debug");
@@ -99,12 +100,8 @@ function FontResources() {
     debug(`Pushing fonts: (count: ${descriptors.length})`, descriptors);
     return (0, react_1.createInjectedFontsAsNodes)(descriptors);
 }
-/**
- * Streaming SSR renderer using `renderToReadableStream`. Returns a web `ReadableStream`
- * that emits the full HTML document with head injections applied.
- */
 async function getStreamingContent(location, options) {
-    return Font.withServerContext(() => {
+    return Font.withServerContext(async () => {
         const { headContext, element, getStyleElement, loadedData } = prepareRenderContext(location, options);
         const { headNodes: headCssNodes } = (0, react_1.createInjectedCssAsNodes)(options?.assets?.css ?? []);
         const { headNodes: inlineCssNodes } = (0, react_1.createInjectedInlineCssAsNodes)(options?.assets?.inlineCss);
@@ -121,7 +118,11 @@ async function getStreamingContent(location, options) {
             ].filter(Boolean),
             bodyNodes: [(0, jsx_runtime_1.jsx)(FontResources, {}, "font-resources")],
         };
-        return server_2.default.renderToReadableStream((0, jsx_runtime_1.jsx)(server_1.ServerDocument, { data: serverDocumentData, children: (0, jsx_runtime_1.jsx)(head_1.default.Provider, { context: headContext, children: (0, jsx_runtime_1.jsx)(static_1.InnerRoot, { loadedData: loadedData, children: element }) }) }), {
+        // `stream.allReady` only rejects on fatal Suspense errors; React-recovered errors (Suspense
+        // subtree with no error boundary) hit `onError` and let the render finish. SSG must fail the
+        // export in that case, so capture and rethrow.
+        const renderErrors = [];
+        const stream = await server_2.default.renderToReadableStream((0, jsx_runtime_1.jsx)(server_1.ServerDocument, { data: serverDocumentData, children: (0, jsx_runtime_1.jsx)(head_1.default.Provider, { context: headContext, children: (0, jsx_runtime_1.jsx)(static_1.InnerRoot, { loadedData: loadedData, children: element }) }) }), {
             // TODO(@hassankhan): Experiment and see if we can calculate a better default
             // We're doubling the default here so non-JavaScript renders show some content
             progressiveChunkSize: 12800 * 2,
@@ -132,9 +133,20 @@ async function getStreamingContent(location, options) {
                 if (options?.request?.signal.aborted) {
                     return;
                 }
+                if (options?.output === 'static') {
+                    renderErrors.push(error);
+                }
                 console.error('SSR streaming render error:', error);
             },
         });
+        if (options?.output === 'static') {
+            await stream.allReady;
+            if (renderErrors.length > 0) {
+                throw renderErrors[0];
+            }
+            return await (0, consumers_1.text)(stream);
+        }
+        return stream;
     });
 }
 var metadata_1 = require("./metadata");

@@ -346,6 +346,38 @@ describe('getStaticPageAsync', () => {
     );
   });
 
+  it('drains streaming output to a string when web.output is static and SSR streaming is enabled', async () => {
+    jest.mocked(getConfig).mockReturnValue({
+      // @ts-expect-error
+      pkg: {},
+      exp: {
+        web: {
+          output: 'static',
+        },
+        extra: {
+          router: {
+            unstable_useServerRendering: true,
+          },
+        },
+      },
+    });
+
+    const devServer = createDevServerForStaticPageTests();
+    const getStaticContent = jest.fn();
+    const getStreamingContent = jest.fn(async () => '<html><head></head><body></body></html>');
+    devServer['ssrLoadModule'] = jest.fn(async () => ({ getStaticContent, getStreamingContent }));
+    devServer['getStaticResourcesAsync'] = jest.fn(async () => ({ artifacts: [] })) as any;
+
+    const result = await devServer['getStaticPageAsync']('/posts/123', htmlRoute);
+
+    expect(typeof result.content).toBe('string');
+    expect(result.resources).toEqual([]);
+    expect(getStaticContent).not.toHaveBeenCalled();
+    expect(getStreamingContent).toHaveBeenCalledWith(new URL('http://localhost:8081/posts/123'), {
+      output: 'static',
+    });
+  });
+
   it('normalizes loader Response data and passes dynamic params to metadata', async () => {
     jest.mocked(getConfig).mockReturnValue({
       // @ts-expect-error
