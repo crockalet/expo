@@ -16,7 +16,8 @@ async function resolveModuleAsync(packageName, revision) {
         packageName,
         packageRoot: revision.path,
         webpageRoot: await resolveWebpageRoot(revision.path, devtoolsConfig.webpageRoot),
-        webpageBanner: devtoolsConfig.webpageBanner ?? false,
+        cliBanner: devtoolsConfig.cliBanner ?? false,
+        bannerTitle: devtoolsConfig.bannerTitle,
         cliExtensions: devtoolsConfig.cliExtensions,
     };
 }
