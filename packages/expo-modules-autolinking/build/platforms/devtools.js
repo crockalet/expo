@@ -15,20 +15,21 @@ async function resolveModuleAsync(packageName, revision) {
     return {
         packageName,
         packageRoot: revision.path,
-        webpageRoot: await resolveWebpageRoot(revision.path, devtoolsConfig.webpageRoot),
+        webpageRoot: await resolvePackageLocalPath(revision.path, devtoolsConfig.webpageRoot),
         cliBanner: devtoolsConfig.cliBanner ?? false,
         bannerTitle: devtoolsConfig.bannerTitle,
+        serverEntryPoint: await resolvePackageLocalPath(revision.path, devtoolsConfig.serverEntryPoint),
         cliExtensions: devtoolsConfig.cliExtensions,
     };
 }
-async function resolveWebpageRoot(packageRoot, configuredWebpageRoot) {
-    if (!configuredWebpageRoot) {
+async function resolvePackageLocalPath(packageRoot, configuredPath) {
+    if (!configuredPath) {
         return undefined;
     }
-    const resolvedWebpageRoot = path_1.default.resolve(packageRoot, configuredWebpageRoot);
+    const resolvedPath = path_1.default.resolve(packageRoot, configuredPath);
     // NOTE(@kitten): Failing realpath-ing, typically due to ENOENT, results in the original value
-    const webpageRoot = (await (0, utils_1.maybeRealpath)(resolvedWebpageRoot)) ?? resolvedWebpageRoot;
-    return (0, utils_1.isPathInside)(webpageRoot, packageRoot) ? webpageRoot : undefined;
+    const realPath = (await (0, utils_1.maybeRealpath)(resolvedPath)) ?? resolvedPath;
+    return (0, utils_1.isPathInside)(realPath, packageRoot) ? realPath : undefined;
 }
 async function resolveExtraBuildDependenciesAsync(_projectNativeRoot) {
     return null;
