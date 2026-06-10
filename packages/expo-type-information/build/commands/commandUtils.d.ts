@@ -6,6 +6,7 @@ export type TypeInformationCommandCommonAllArguments = {
     outputPath?: string;
     typeInference?: 'NO_INFERENCE' | 'SIMPLE_INFERENCE' | 'PREPROCESS_AND_INFERENCE';
     skipUnicodeCharacterMapping?: boolean;
+    disableRunOnQueuePreprocessing?: boolean;
     watcher?: boolean;
     appJson?: string;
 };
@@ -15,6 +16,7 @@ export interface ParsedArguments {
     realOutputPath?: string;
     typeInference: TypeInferenceOption;
     mapUnicodeCharacters: boolean;
+    runOnQueuePreprocessing: boolean;
     watcher: boolean;
     appJsonPath?: string;
 }
@@ -34,10 +36,11 @@ export declare function getModuleFilePathsFromPodspec(modulePath: string): strin
 export declare function uniqueStrings(strings: string[]): string[];
 export declare function maybePrepareOutputDirectory(dirName?: string): Promise<void>;
 export declare function parseCommandArguments(options: TypeInformationCommandCommonAllArguments, isOutputFile?: boolean): ParsedArguments | null;
-export declare function getFileTypeInformationFromArgs({ realInputPaths, typeInference, mapUnicodeCharacters, }: {
+export declare function getFileTypeInformationFromArgs({ realInputPaths, typeInference, mapUnicodeCharacters, runOnQueuePreprocessing, }: {
     realInputPaths: string[];
     typeInference: TypeInferenceOption;
     mapUnicodeCharacters: boolean;
+    runOnQueuePreprocessing: boolean;
 }): Promise<FileTypeInformation | null>;
 export declare function writeStringToFileOrPrintToConsole(text: string, realOutputPath: string | undefined): void;
 export declare function getContentHash(content: string): string;

@@ -846,9 +846,21 @@ function returnExpressionEnd(fileContent, returnIndex) {
 // TODO(@HubertBer): This has many problems which need fixing:
 // - return can be inside a string
 // - return Expression end parses incorrectly in case of some strings (check how it parses expo-video)
-function preprocessReturnStatements(originalFileContent) {
+function preprocessSwiftFile(originalFileContent, { preprocessReturns, runOnQueue, mapUnicodeCharacters }) {
+    let fileContent = removeComments(originalFileContent);
+    if (preprocessReturns) {
+        fileContent = preprocessReturnStatements(fileContent);
+    }
+    if (runOnQueue) {
+        fileContent = preprocessRunOnQueue(fileContent);
+    }
+    if (mapUnicodeCharacters) {
+        fileContent = preprocessUnicodeCharacters(fileContent);
+    }
+    return fileContent;
+}
+function preprocessReturnStatements(fileContent) {
     const newFileContent = [];
-    const fileContent = removeComments(originalFileContent);
     const returnPositions = [];
     let startPos = 0;
     while (startPos < fileContent.length) {
@@ -883,14 +895,9 @@ function preprocessUnicodeCharacters(fileConent) {
         return `_u${hex}_`;
     });
 }
-function preprocessSwiftFile(originalFileContent, { preprocessReturns, mapUnicodeCharacters }) {
-    let fileContent = originalFileContent;
-    if (preprocessReturns) {
-        fileContent = preprocessReturnStatements(fileContent);
-    }
-    if (mapUnicodeCharacters) {
-        fileContent = preprocessUnicodeCharacters(fileContent);
-    }
-    return fileContent;
+function preprocessRunOnQueue(originalFileContent) {
+    const regex = /\.runOnQueue\s*\([^)]*\)/g;
+    // Note that this won't work if there are nested parentheses inside the runOnQueue, e.g. .runOnQueue(function1()) won't work
+    return originalFileContent.replace(regex, '');
 }
 //# sourceMappingURL=sourcekittenTypeInformation.js.map

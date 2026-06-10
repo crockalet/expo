@@ -224,6 +224,7 @@ async function getAllExpoModulesInWorkingDirectory() {
             inputFileAbsolutePaths: [fs_1.default.realpathSync(file)],
         },
         mapUnicodeCharacters: true,
+        runOnQueue: true,
     })))).filter((f) => f);
 }
 //# sourceMappingURL=mockgen.js.map

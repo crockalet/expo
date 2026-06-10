@@ -301,8 +301,10 @@ export type GetFileTypeInformationOptions = {
     typeInference?: TypeInferenceOption;
     /** An option to map unicode code points to ASCII strings to fix underlying SourceKit issue. */
     mapUnicodeCharacters: boolean;
+    /** Preprocess the file to remove all `runOnQueue(.*)` from it. */
+    runOnQueue: boolean;
 };
-export declare function withPreparedSingleFile<T>({ input, typeInference, mapUnicodeCharacters }: GetFileTypeInformationOptions, fn: (filePath: string) => Promise<T>): Promise<T>;
+export declare function withPreparedSingleFile<T>({ input, typeInference, mapUnicodeCharacters, runOnQueue }: GetFileTypeInformationOptions, fn: (filePath: string) => Promise<T>): Promise<T>;
 /**
  * Reads and extracts `FileTypeInformation` from either a provided file path or a raw string of source code.
  * If a raw string is provided, or if the `PREPROCESS_AND_INFERENCE` inference option is selected,
@@ -311,4 +313,4 @@ export declare function withPreparedSingleFile<T>({ input, typeInference, mapUni
  * @returns A promise that resolves to a `FileTypeInformation` object if the input was parsed successfully. Otherwise, it resolves to `null`.
  * @header TypeInformationAbstraction
  */
-export declare function getFileTypeInformation({ input, typeInference, mapUnicodeCharacters, }: GetFileTypeInformationOptions): Promise<FileTypeInformation | null>;
+export declare function getFileTypeInformation({ input, typeInference, mapUnicodeCharacters, runOnQueue, }: GetFileTypeInformationOptions): Promise<FileTypeInformation | null>;

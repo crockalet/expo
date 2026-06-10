@@ -54,6 +54,7 @@ function addCommonOptions(command) {
     // TODO(@HubertBer) Fix the PREPROCESS_AND_INFERENCE option.
     'Level of type inference: `NO_INFERENCE`, `SIMPLE_INFERENCE`, or `PREPROCESS_AND_INFERENCE`. Note that the `PREPROCESS_AND_INFERENCE` option can occasionally fail on some modules. If you encountered errors, fall back to `SIMPLE_INFERENCE` or `NO_INFERENCE`.', 'SIMPLE_INFERENCE')
         .option('-s, --skip-unicode-character-mapping', 'skip mapping all non-ASCII characters in a file to ASCII strings. By default this mapping is performed as SourceKitten is inconsistent when calculating offsets of non-ASCII characters.')
+        .option('-d, --disable-run-on-queue-preprocessing', 'Disable preprocessing runOnQueue.')
         .option('-w --watcher', 'Starts a watcher that checks for changes in input-path file.');
 }
 /**
@@ -206,6 +207,7 @@ function parseCommandArguments(options, isOutputFile = true) {
         return null;
     }
     const mapUnicodeCharacters = !options.skipUnicodeCharacterMapping;
+    const runOnQueuePreprocessing = !options.disableRunOnQueuePreprocessing;
     const watcher = options.watcher ?? false;
     return {
         realInputPaths,
@@ -214,13 +216,15 @@ function parseCommandArguments(options, isOutputFile = true) {
         mapUnicodeCharacters,
         watcher,
         appJsonPath,
+        runOnQueuePreprocessing,
     };
 }
-async function getFileTypeInformationFromArgs({ realInputPaths, typeInference, mapUnicodeCharacters, }) {
+async function getFileTypeInformationFromArgs({ realInputPaths, typeInference, mapUnicodeCharacters, runOnQueuePreprocessing, }) {
     const typeInfo = await (0, typeInformation_1.getFileTypeInformation)({
         input: { type: 'file', inputFileAbsolutePaths: realInputPaths },
         typeInference,
         mapUnicodeCharacters,
+        runOnQueue: runOnQueuePreprocessing,
     });
     if (!typeInfo) {
         console.error(chalk_1.default.red(`Provided files: ${realInputPaths} couldn't be parsed for type information!`));

@@ -31,6 +31,7 @@ async function generateInlineModuleTSFiles({ filePath, dirPath, typeInference, m
         typeInference,
         watcher: false,
         mapUnicodeCharacters,
+        runOnQueuePreprocessing: false,
     });
 }
 async function inlineModulesWatcher({ appJsonPath, typeInference, mapUnicodeCharacters, }) {

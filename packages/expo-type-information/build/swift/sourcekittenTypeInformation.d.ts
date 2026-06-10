@@ -6,6 +6,7 @@ export declare function getSwiftFileTypeInformation(filePath: string, options: S
 type SourceKittenPreprocessingOptions = {
     preprocessReturns?: boolean;
     mapUnicodeCharacters?: boolean;
+    runOnQueue: boolean;
 };
-export declare function preprocessSwiftFile(originalFileContent: string, { preprocessReturns, mapUnicodeCharacters }: SourceKittenPreprocessingOptions): string;
+export declare function preprocessSwiftFile(originalFileContent: string, { preprocessReturns, runOnQueue, mapUnicodeCharacters }: SourceKittenPreprocessingOptions): string;
 export {};
