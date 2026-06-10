@@ -64,6 +64,7 @@ export interface ModuleDescriptorDevTools {
     packageName: string;
     packageRoot: string;
     webpageRoot?: string;
+    webpageBanner: boolean;
     cliExtensions?: {
         description: string;
         commands: {
@@ -254,6 +255,11 @@ export interface RawExpoModuleConfig {
          * The webpage root directory for Expo CLI DevTools to serve the web resources. Only set if the module has a web interface.
          */
         webpageRoot?: string;
+        /**
+         * Whether to show the DevTools plugin URL in the Expo CLI startup banner.
+         * Defaults to false.
+         */
+        webpageBanner?: boolean;
         /**
          * Cli extension config for the module.
          */
