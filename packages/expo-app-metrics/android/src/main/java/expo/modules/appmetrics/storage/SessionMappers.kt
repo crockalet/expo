@@ -103,7 +103,9 @@ data class SessionMetricInput(
   @Field val routeName: String? = null,
   @Field val params: Map<String, Any?>? = null
 ) : Record {
-  fun toMetric(sessionId: String): Metric =
+  // `sessionId` defaults to blank: when the metric is added through a session
+  // shared object, the object stamps its own id during `addMetrics`.
+  fun toMetric(sessionId: String = ""): Metric =
     Metric(
       metricId = UUID.randomUUID().toString(),
       sessionId = sessionId,

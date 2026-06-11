@@ -1,5 +1,5 @@
 import type { SharedObject } from 'expo';
-import type { LogRecord, Metric, MetricInput, SessionType } from './types';
+import type { LogEventOptions, LogRecord, Metric, MetricInput, SessionType } from './types';
 /**
  * A live session recorded by App Metrics, backed by a native shared object.
  *
@@ -50,5 +50,10 @@ export declare class Session extends SharedObject {
      * the receiver, so the metric input carries no `sessionId`.
      */
     addMetric(metric: MetricInput): Promise<void>;
+    /**
+     * Records a log event against this session. The event name is validated and
+     * the attributes sanitized natively; invalid events are dropped.
+     */
+    logEvent(name: string, options?: LogEventOptions): Promise<void>;
 }
 //# sourceMappingURL=Session.d.ts.map

@@ -243,6 +243,29 @@ class SessionSharedObjectTest {
     }
 
   @Test
+  fun `addMetrics re-stamps a metric carrying a foreign session id`() =
+    runTest {
+      // Callers that route a metric through the shared object (e.g.
+      // `addCustomMetricToSession`) may hand us a Metric stamped with some other
+      // session id. The shared object owns the association: the metric must land
+      // under THIS session, never the id it arrived with.
+      val session = SessionSharedObject(
+        sessionManager = sessionManager,
+        scope = this,
+        type = "main",
+        customStartTimestamp = "2025-01-01T00:00:00.000Z"
+      )
+
+      session.addMetrics(listOf(createMetric("metric-1", sessionId = "some-foreign-session")))
+
+      val persisted = session.getMetrics()
+      assertEquals(setOf("metric-1"), persisted.map { it.metricId }.toSet())
+      assertTrue(persisted.all { it.sessionId == session.sessionId })
+      // Nothing leaked to the foreign id.
+      assertTrue(sessionManager.getMetricsForSession("some-foreign-session").isEmpty())
+    }
+
+  @Test
   fun `getters never trigger the session-start persist`() =
     runTest {
       // Reads are intentionally NOT gated on awaitSessionPersisted(): they read

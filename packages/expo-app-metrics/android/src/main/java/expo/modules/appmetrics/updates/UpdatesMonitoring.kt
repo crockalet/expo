@@ -5,7 +5,6 @@ import expo.modules.appmetrics.AppUpdatesInfo
 import expo.modules.appmetrics.MetricCategory
 import expo.modules.appmetrics.TAG
 import expo.modules.appmetrics.storage.Metric
-import expo.modules.appmetrics.storage.SessionSharedObject
 import expo.modules.appmetrics.utils.TimeUtils
 import expo.modules.updatesinterface.UpdatesControllerRegistry
 import expo.modules.updatesinterface.UpdatesNativeInterfaceStateContext
@@ -15,9 +14,7 @@ import expo.modules.updatesinterface.UpdatesStateChangeSubscription
  * Provides updates-related metric helpers.
  * The subscription lifecycle and state change listening are managed by AppMetricsModule.
  */
-class UpdatesMonitoring(
-  private val session: SessionSharedObject
-) {
+class UpdatesMonitoring {
 
   /**
    * Returns the current updates info (update ID, runtime version, request headers) for the
@@ -62,8 +59,10 @@ class UpdatesMonitoring(
 
     val downloadTimeSeconds = (finishTime.time - startTime.time).toDouble() / 1000.0
 
+    // `sessionId` is left blank: the caller persists this through the session
+    // shared object (`mainSession.addMetrics`), which stamps its own id.
     return Metric(
-      sessionId = session.sessionId,
+      sessionId = "",
       timestamp = TimeUtils.getCurrentTimestampInISOFormat(),
       category = MetricCategory.Updates.categoryName,
       name = "updateDownloadTime",
