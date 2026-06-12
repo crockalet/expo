@@ -9,6 +9,8 @@
 
 ### 🎉 New features
 
+- `file.slice()` is now lazy — returns a `FileSlice` that defers I/O until the data is consumed, avoiding eager reads of the entire file into memory.
+
 ### 🐛 Bug fixes
 
 ### 💡 Others
