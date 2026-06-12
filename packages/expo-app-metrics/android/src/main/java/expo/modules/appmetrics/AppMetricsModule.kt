@@ -1,7 +1,16 @@
 package expo.modules.appmetrics
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import expo.modules.appmetrics.appstartup.AppStartupManager
+import expo.modules.appmetrics.crashreporting.AndroidExitInfoProvider
+import expo.modules.appmetrics.crashreporting.CrashFileWriter
+import expo.modules.appmetrics.crashreporting.CrashKind
+import expo.modules.appmetrics.crashreporting.CrashReportProcessor
+import expo.modules.appmetrics.crashreporting.CrashReportSimulation
+import expo.modules.appmetrics.crashreporting.CrashTriggers
+import expo.modules.appmetrics.crashreporting.PreferencesProcessedExitRecordsStore
+import expo.modules.appmetrics.crashreporting.ProcessIdentity
 import expo.modules.appmetrics.logevents.LogEventOptions
 import expo.modules.appmetrics.networkrequests.NetworkRequestFilter
 import expo.modules.appmetrics.networkrequests.NetworkRequestObserver
@@ -127,7 +136,10 @@ class AppMetricsModule : Module(), UpdatesStateChangeListener {
           type = "main",
           customStartTimestamp = appSessionStartTimestamp,
           metadata = metadata,
-          runtime = appContext.runtime
+          runtime = appContext.runtime,
+          // Adopt the id established at process start so crashes captured
+          // before the module existed attribute to this session.
+          customSessionId = ProcessIdentity.initialize()
         )
 
         // Persist the session row eagerly so it's visible to readers
@@ -140,6 +152,22 @@ class AppMetricsModule : Module(), UpdatesStateChangeListener {
         // survives while older ones are swept — order vs the INSERT doesn't
         // matter. Relies on `<`, not `<=` (see SessionManagerTest).
         scope.launch { sessionManager.deactivateAllSessionsBefore(appSessionStartTimestamp) }
+
+        // Turn the previous process's death evidence (pending JVM crash files,
+        // OS exit records) into stored crash reports. Runs after the session
+        // persist and orphan sweep — `modulesQueue` executes these in order.
+        scope.launch {
+          CrashReportProcessor(
+            sessionManager = sessionManager,
+            crashFileWriter = CrashFileWriter.forContext(context),
+            exitInfoProvider = AndroidExitInfoProvider(context),
+            processedRecordsStore = PreferencesProcessedExitRecordsStore(context),
+            // The app's actual debuggable flag, not this library's BuildConfig —
+            // dev-tooling false positives are a property of the app build.
+            isDebuggableBuild = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0,
+            appVersion = metadata?.appVersion
+          ).process(currentSessionId = mainSession.sessionId)
+        }
 
         memoryMetricsManager = MemoryMetricsManager(
           context = context,
@@ -176,7 +204,24 @@ class AppMetricsModule : Module(), UpdatesStateChangeListener {
       // Debug-only: surfaces the inactive (ended) sessions for on-device
       // inspection (e.g. the ObserveTester app)
       AsyncFunction("getInactiveSessions") Coroutine { ->
-        sessionManager.getInactiveSessions().map { JsDebugSession.fromSessionWithMetrics(it) }
+        sessionManager.getInactiveSessionsWithCrashReports().map { JsDebugSession.fromSessionWithChildren(it) }
+      }
+
+      // Debug-only: intentionally crashes the app to exercise the real
+      // crash-reporting pipeline end to end.
+      Function("triggerCrash") { kind: CrashKind ->
+        CrashTriggers.trigger(kind)
+      }
+
+      // Debug-only: stores a synthetic crash report against the current main
+      // session without crashing (tests the storage and display path). Doesn't
+      // await the session-row persist: `crash_reports` deliberately has no FK
+      // to `sessions`, so the report lands even if the row hasn't yet.
+      Function("simulateCrashReport") {
+        val payload = CrashReportSimulation.simulate(metadata?.appVersion).encodeToJsonString()
+        scope.launch {
+          sessionManager.setCrashReport(mainSession.sessionId, payload)
+        }
       }
 
       AsyncFunction("takeMemoryUsageSnapshotAsync") Coroutine { sessionId: String? ->
